@@ -3,7 +3,7 @@ const app = express();
 const cors = require("cors");
 const port = process.env.PORT || 5000;
 require("dotenv").config();
-const { MongoClient, ServerApiVersion } = require("mongodb");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 
 // middleware
 app.use(cors());
@@ -26,6 +26,46 @@ async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
     // await client.connect();
+
+    const categoryCollection = client
+      .db("libraryMateDB")
+      .collection("categories");
+    const booksCollection = client.db("libraryMateDB").collection("books");
+    const borrowerCollection = client
+      .db("libraryMateDB")
+      .collection("borrowers");
+
+    // get cat from db to server
+    app.get("/categories", async (req, res) => {
+      const result = await categoryCollection.find().toArray();
+      res.send(result);
+    });
+    app.get("/allBooks", async (req, res) => {
+      const result = await booksCollection.find().toArray();
+      res.send(result);
+    });
+    // Add a route to fetch crafts based on category
+    app.get("/singleCategory/:category", async (req, res) => {
+      const category = req.params.category;
+      const query = { category: category };
+      const cursor = booksCollection.find(query);
+      const result = await cursor.toArray();
+      res.send(result);
+    });
+    // fetch single data by id
+    app.get("/bookDetail/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await booksCollection.findOne(query);
+      res.send(result);
+    });
+    // data sent to database from client from and server
+    app.post("/allBooks", async (req, res) => {
+      const newBook = req.body;
+      console.log(newBook);
+      const result = await booksCollection.insertOne(newBook);
+      res.send(result);
+    });
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
