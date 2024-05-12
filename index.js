@@ -3,6 +3,7 @@ const app = express();
 const cors = require("cors");
 const port = process.env.PORT || 5000;
 require("dotenv").config();
+
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 
 // middleware
@@ -66,15 +67,6 @@ async function run() {
       res.send(result);
     });
 
-    // get borrowed books by email
-    app.get("/allBorrowers/:email", async (req, res) => {
-      const email = req.params.email;
-      const query = { email: email };
-      const cursor = borrowerCollection.find(query);
-      const result = await cursor.toArray();
-      res.send(result);
-    });
-
     // data sent to database from client from and server
     app.post("/allBooks", async (req, res) => {
       const newBook = req.body;
@@ -89,111 +81,42 @@ async function run() {
     //   const result = await borrowerCollection.insertOne(newBorrowers);
     //   res.send(result);
     // });
-    //
-    //
-    // borrow data sent to database from client and server
-    // borrow data sent to database from client and server
-    // app.post("/allBorrowers", async (req, res) => {
-    //   const newBorrower = req.body;
-    //   console.log(newBorrower);
-
-    //   try {
-    //     // First, insert the new borrower into borrowerCollection
-    //     const borrowerResult = await borrowerCollection.insertOne(newBorrower);
-
-    //     // Then, decrement the quantity of the borrowed book in booksCollection
-    //     const bookId = newBorrower.book_id;
-    //     const query = { _id: new ObjectId(bookId) };
-    //     const book = await booksCollection.findOne(query);
-
-    //     if (!book) {
-    //       console.log(`Book with id ${bookId} not found`);
-    //       return res.status(404).json({ message: "Book not found" });
-    //     }
-
-    //     // Convert quantity from string to number
-    //     const quantity = parseInt(book.quantity);
-
-    //     // Check if quantity is valid
-    //     if (isNaN(quantity)) {
-    //       console.log(`Quantity of book ${bookId} is not a number`);
-    //       return res.status(500).json({ message: "Invalid quantity" });
-    //     }
-
-    //     // Check if quantity is greater than 0
-    //     if (quantity <= 0) {
-    //       console.log(`Quantity of book ${bookId} is already 0`);
-    //       return res.status(400).json({ message: "Book quantity already 0" });
-    //     }
-
-    //     // Decrement quantity by 1
-    //     const updatedQuantity = quantity - 1;
-
-    //     // Update quantity in the database
-    //     const updateResult = await booksCollection.updateOne(query, {
-    //       $set: { quantity: updatedQuantity.toString() },
-    //     });
-
-    //     if (updateResult.modifiedCount === 1) {
-    //       console.log(`Quantity of book ${bookId} decremented successfully`);
-    //     } else {
-    //       console.log(`Failed to decrement quantity of book ${bookId}`);
-    //       return res.status(500).json({ message: "Failed to update quantity" });
-    //     }
-
-    //     res.status(200).json({
-    //       message: "Borrower added successfully",
-    //       borrower: borrowerResult.ops[0],
-    //       updateResult: updateResult || null,
-    //     });
-    //   } catch (error) {
-    //     console.error("Error borrowing book:", error);
-    //     res.status(500).json({ message: "Internal server error" });
-    //   }
-    // });
-
-    // borrow data sent to database from client and server
+    //**** */
+    // borrow data sent to database from client from and server
+    // borrow data sent to database from client from and server
     app.post("/allBorrowers", async (req, res) => {
-      const newBorrower = req.body;
-      console.log(newBorrower);
+      const newBorrowers = req.body;
+      console.log(newBorrowers);
+      const { book_id } = newBorrowers; // Assuming you're sending book_id in the request body
 
-      try {
-        const bookId = newBorrower.book_id;
-        const query = { _id: new ObjectId(bookId) };
-        const book = await booksCollection.findOne(query);
+      // Fetch the current quantity of the borrowed book
+      const book = await booksCollection.findOne({
+        _id: new ObjectId(book_id),
+      });
 
-        const quantity = parseInt(book.quantity);
+      // Ensure the quantity is a number
+      const currentQuantity = parseInt(book.quantity);
 
-        // Check if quantity is valid and greater than 0
-        if (quantity <= 0) {
-          console.log(`Quantity of book ${bookId} is already 0`);
-          return res
-            .status(400)
-            .json({ message: "Sorry no book left, so cannot be borrowed" });
-        }
+      // Check if currentQuantity is a valid number and greater than 0
+      if (!isNaN(currentQuantity) && currentQuantity > 0) {
+        // Reduce the quantity of the borrowed book in the books collection by 1
+        await booksCollection.updateOne(
+          { _id: new ObjectId(book_id) }, // Filter by the book_id
+          { $set: { quantity: currentQuantity - 1 } } // Set the quantity to currentQuantity - 1
+        );
 
-        // Decrement quantity by 1
-        const updatedQuantity = quantity - 1;
+        // Insert the borrower information into the borrowers collection
+        const result = await borrowerCollection.insertOne(newBorrowers);
 
-        // Update quantity in the database
-        const updateResult = await booksCollection.updateOne(query, {
-          $set: { quantity: updatedQuantity.toString() },
-        });
-
-        if (updateResult.modifiedCount === 1) {
-          console.log(`Quantity of book ${bookId} decremented successfully`);
-          return res
-            .status(200)
-            .json({ message: "Quantity decremented successfully" });
-        } else {
-          console.log(`Failed to decrement quantity of book ${bookId}`);
-          return res.status(500).json({ message: "Failed to update quantity" });
-        }
-      } catch (error) {
-        console.error("Error decrementing book quantity:", error);
-        return res.status(500).json({ message: "Internal server error" });
+        res.send(result);
+      } else {
+        // Handle the case where the quantity is not greater than 0
+        console.error("Cannot borrow book. Quantity is zero or less.");
+        res.status(400).send("Cannot borrow book. Quantity is zero or less.");
       }
     });
+
+    //**** */
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
