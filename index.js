@@ -118,6 +118,34 @@ async function run() {
 
     //**** */
 
+    // delete operation
+    // app.delete("/allBorrowers/:id", async (req, res) => {
+    //   const id = req.params.id;
+    //   const query = { _id: new ObjectId(id) };
+    //   const result = await borrowerCollection.deleteOne(query);
+    //   res.send(result);
+    // });
+
+    // delete operation
+    app.delete("/allBorrowers/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+
+      // Find the borrowed book information
+      const borrowedBook = await borrowerCollection.findOne(query);
+      const { book_id } = borrowedBook;
+
+      // Increment the quantity of the returned book in the books collection by 1
+      await booksCollection.updateOne(
+        { _id: new ObjectId(book_id) }, // Filter by the book_id
+        { $inc: { quantity: 1 } } // Increment the quantity by 1
+      );
+
+      // Delete the borrower information from the borrowers collection
+      const result = await borrowerCollection.deleteOne(query);
+      res.send(result);
+    });
+
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log(
