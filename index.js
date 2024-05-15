@@ -7,6 +7,16 @@ require("dotenv").config();
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 
 // middleware
+// app.use(
+//   cors({
+//     origin: [
+//       "http://localhost:5000",
+//       "https://librarymate-549da.web.app",
+//       "https://librarymate-549da.firebaseapp.com",
+//     ],
+//     credentials: true,
+//   })
+// );
 app.use(cors());
 app.use(express.json());
 
@@ -48,6 +58,14 @@ async function run() {
     // borrower
     app.get("/allBorrowers", async (req, res) => {
       const result = await borrowerCollection.find().toArray();
+      res.send(result);
+    });
+    app.get("/allBorrowers/:email", async (req, res) => {
+      const email = req.params.email; // Corrected to use req.params.email
+      // Assuming you want to query based on email, modify your query accordingly
+      const query = { email: email };
+      const cursor = borrowerCollection.find(query);
+      const result = await cursor.toArray();
       res.send(result);
     });
 
@@ -125,6 +143,32 @@ async function run() {
     //   const result = await borrowerCollection.deleteOne(query);
     //   res.send(result);
     // });
+
+    // update
+    app.put("/bookDetail/:id", async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
+      const options = { upsert: true };
+      const updateBook = req.body;
+      const updatedBook = {
+        $set: {
+          book_image: updateBook.book_image,
+          book_name: updateBook.book_name,
+          quantity: updateBook.quantity,
+          author_name: updateBook.author_name,
+          category: updateBook.category,
+          rating: updateBook.rating,
+          short_description: updateBook.short_description,
+          about: updateBook.about,
+        },
+      };
+      const result = await booksCollection.updateOne(
+        filter,
+        updatedBook,
+        options
+      );
+      res.send(result);
+    });
 
     // delete operation
     app.delete("/allBorrowers/:id", async (req, res) => {
